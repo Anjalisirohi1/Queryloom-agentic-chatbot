@@ -1,0 +1,106 @@
+# =========================
+# Python / Conda environments
+# =========================
+.venv/
+venv/
+env/
+ENV/
+.conda/
+chatbot_env/
+conda-bld/
+__pycache__/
+*.py[cod]
+*$py.class
+
+# =========================
+# Secrets and environment files
+# =========================
+.env
+.env.*
+!.env.example
+.streamlit/secrets.toml
+
+# =========================
+# Local databases and checkpoints
+# =========================
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+*.sqlite-shm
+*.sqlite-wal
+checkpoints/
+checkpoints_*/
+
+# =========================
+# Uploaded/private documents and generated vector stores
+# Keep safe example documents in data/sample_docs/
+# =========================
+data/uploads/
+data/private/
+data/processed/
+data/chroma/
+chroma_db/
+chroma/
+faiss_db/
+faiss_index/
+vectorstore/
+vector_store/
+uploads/
+
+# =========================
+# Model files and local Hugging Face cache
+# =========================
+.cache/
+.cache/huggingface/
+huggingface_cache/
+models/
+*.safetensors
+*.gguf
+*.pt
+*.pth
+*.bin
+
+# =========================
+# Testing, coverage, and type-checker caches
+# =========================
+.pytest_cache/
+.coverage
+.coverage.*
+htmlcov/
+.tox/
+.nox/
+.mypy_cache/
+.ruff_cache/
+.dmypy.json
+.pytype/
+
+# =========================
+# Build / packaging artifacts
+# =========================
+build/
+dist/
+*.egg-info/
+.eggs/
+wheels/
+pip-wheel-metadata/
+
+# =========================
+# Logs, temporary files, and notebooks
+# =========================
+*.log
+logs/
+tmp/
+temp/
+*.tmp
+.ipynb_checkpoints/
+
+# =========================
+# OS / editor files
+# =========================
+.DS_Store
+Thumbs.db
+Desktop.ini
+.vscode/
+.idea/
