@@ -1,0 +1,32 @@
+# Secrets
+.env
+.env.*
+!.env.example
+
+# Git
+.git/
+.github/
+
+# Python environments and caches
+.venv/
+venv/
+env/
+ENV/
+chatbot_env/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# IDE files
+.vscode/
+.idea/
+
+# Logs
+logs/
+*.log
+
+# Local user uploads and private data
+data/uploads/
+data/private/
+data/processed/
+data/chroma_db/
