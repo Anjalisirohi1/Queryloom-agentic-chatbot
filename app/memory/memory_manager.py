@@ -187,7 +187,7 @@ def memory_manager_node(state: ChatState):
     if not messages:
         return {}
 
-    # Step 1: Check token pressure BEFORE making a classifier call.
+
     estimated_tokens = count_tokens_approximately(
         [
             SystemMessage(content=build_system_prompt(state)),
@@ -195,11 +195,10 @@ def memory_manager_node(state: ChatState):
         ]
     )
 
-    # Step 2: Handle token pressure and both memory summaries.
     if estimated_tokens > MAX_INPUT_TOKENS:
         updated_user_summary = None
 
-        # Update durable user memory before deleting messages.
+
         try:
             if should_update_memory(state):
                 updated_user_summary = validate_summary(
@@ -215,7 +214,6 @@ def memory_manager_node(state: ChatState):
             )
             return {}
 
-        # Keep recent messages; compact older complete turns.
         messages_to_compact = complete_turn_chunk(messages)
 
         if not messages_to_compact:
@@ -240,7 +238,6 @@ def memory_manager_node(state: ChatState):
 
         return result
 
-    # Step 3: Check for durable user-memory updates on normal turns.
     try:
         update_requested = should_update_memory(state)
     except Exception:
@@ -259,7 +256,6 @@ def memory_manager_node(state: ChatState):
             )
         )
 
-    # Step 4: Compact when the message-count threshold is exceeded.
     if len(messages) > SUMMARY_TRIGGER:
         messages_to_compact = complete_turn_chunk(messages)
 
@@ -275,20 +271,6 @@ def memory_manager_node(state: ChatState):
             )
         )
 
-        if updated_user_summary is None:
-            user_messages = durable_user_messages(messages_to_compact)
-
-            if user_messages:
-                updated_user_summary = validate_summary(
-                    summarize_messages(
-                        existing_summary,
-                        user_messages,
-                    )
-                )
-            else:
-                updated_user_summary = (
-                    existing_summary or NO_DURABLE_MEMORY
-                )
 
         result = {
             "conversation_summary": new_context,
@@ -300,7 +282,6 @@ def memory_manager_node(state: ChatState):
 
         return result
 
-    # Step 5: Save a correction without deleting messages.
     if updated_user_summary is not None:
         return {"summary": updated_user_summary}
 

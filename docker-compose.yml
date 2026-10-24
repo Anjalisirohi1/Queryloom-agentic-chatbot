@@ -4,9 +4,9 @@ services:
     container_name: queryloom-postgres
     restart: unless-stopped
     environment:
-      POSTGRES_USER: queryloom
-      POSTGRES_PASSWORD: queryloom_dev_password
-      POSTGRES_DB: queryloom
+      POSTGRES_USER: ${POSTGRES_USER:?Set POSTGRES_USER in .env}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:?Set POSTGRES_DB in .env}
     ports:
       - "5442:5432"
     volumes:
