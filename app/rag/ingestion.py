@@ -21,8 +21,11 @@ vector_store = Chroma(
 )
 
 
-def ingest_document(file_path: str) -> int:
+def ingest_document(file_path: str, user_id: str) -> int:
     """Read a document, split it into chunks, and store it."""
+
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise ValueError("A valid user_id is required.")
 
     path = Path(file_path)
 
@@ -47,6 +50,7 @@ def ingest_document(file_path: str) -> int:
                         metadata={
                             "source": path.name,
                             "page": page_number,
+                            "user_id": user_id,
                         },
                     )
                 )
@@ -58,7 +62,10 @@ def ingest_document(file_path: str) -> int:
             documents.append(
                 Document(
                     page_content=text,
-                    metadata={"source": path.name},
+                    metadata={
+                        "source": path.name,
+                        "user_id": user_id,
+                        },
                 )
             )
 
@@ -84,7 +91,14 @@ def ingest_document(file_path: str) -> int:
     if not chunks:
         raise ValueError("No usable chunks found in the document.")
 
-    vector_store.delete(where={"source": path.name})
+    vector_store.delete(
+        where={
+            "$and": [
+                {"user_id": user_id},
+                {"source": path.name},
+            ]
+        }
+    )
     vector_store.add_documents(chunks)
 
     return len(chunks)

@@ -9,6 +9,7 @@ from pathlib import Path
 from uuid import uuid4
 
 import streamlit as st
+from streamlit_cookies_controller import CookieController
 from dotenv import load_dotenv
 from langchain_core.messages import HumanMessage, SystemMessage
 
@@ -55,7 +56,28 @@ if not any(
     )
     error_file_logger.addHandler(error_file_handler)
 
-USER_ID = "local-user"
+# Persistent anonymous identity for each browser.
+COOKIE_NAME = "queryloom_user_id"
+cookie_controller = CookieController(key="queryloom_cookie_controller")
+
+if "queryloom_user_id" in st.session_state:
+    USER_ID = st.session_state["queryloom_user_id"]
+else:
+    USER_ID = st.context.cookies.get(COOKIE_NAME)
+
+    if not isinstance(USER_ID, str) or not USER_ID.startswith("user-"):
+        USER_ID = f"user-{uuid4().hex}"
+
+        cookie_controller.set(
+            COOKIE_NAME,
+            USER_ID,
+            max_age=60 * 60 * 24 * 365,
+            secure=st.context.url.startswith("https://"),
+            same_site="lax",
+        )
+
+    st.session_state["queryloom_user_id"] = USER_ID
+
 THREAD_NAMESPACE = ("queryloom", "users", USER_ID, "threads")
 DEFAULT_TITLE = "New chat"
 UPLOAD_TITLE = "Uploaded documents"
@@ -770,7 +792,7 @@ def index_pdf(uploaded_file):
     path = UPLOAD_DIR / f"{stem}-{digest}.pdf"
     path.write_bytes(data)
 
-    ingest_document(str(path))
+    ingest_document(str(path), user_id=USER_ID)
     return path.name
 
 

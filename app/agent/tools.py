@@ -282,17 +282,25 @@ def search_knowledge_base(
     config: RunnableConfig,
     source: str = "",
 ) -> str:
-    """Search uploaded documents for relevant content."""
+    """Search the current user's uploaded documents."""
 
-    active_documents = (
-        config.get("configurable", {}).get("active_documents", [])
-    )
+    configurable = (config or {}).get("configurable", {})
+    user_id = configurable.get("user_id")
 
-    # If only one document is active, use its authoritative source name.
+    # Never search without a valid user identity.
+    if not isinstance(user_id, str) or not user_id.strip():
+        return "Knowledge-base search unavailable: user identity is missing."
+
+    active_documents = configurable.get("active_documents", []) or []
+
+    # Do not fall back to searching the entire shared collection.
+    if not active_documents:
+        return "No document is selected. Please upload or select a document first."
+
     if len(active_documents) == 1:
         source = active_documents[0]
 
-    elif active_documents and source:
+    elif source:
         matches = [
             name for name in active_documents
             if name == source
@@ -308,10 +316,8 @@ def search_knowledge_base(
                 "Please clarify which uploaded document you mean."
             )
 
-    # Broad overview questions need more candidates so the grader can select
-    # relevant chunks from different parts of the same PDF. Keep focused fact
-    # lookups at the existing k=4 to avoid unnecessary token usage.
     retrieval_k = 12 if _is_document_overview_query(query) else 4
+
     logger.info(
         "Knowledge-base retrieval scope=%s; candidate_k=%d",
         "document overview" if retrieval_k > 4 else "focused question",
@@ -320,6 +326,7 @@ def search_knowledge_base(
 
     documents = retrieve_documents(
         query,
+        user_id=user_id,
         k=retrieval_k,
         source=source or None,
     )
@@ -334,6 +341,12 @@ def search_knowledge_base(
         for doc in documents
     )
 
+
 tools = [
-    calculator,web_search,stock_price,get_weather,convert_currency,search_knowledge_base,
+    calculator,
+    web_search,
+    stock_price,
+    get_weather,
+    convert_currency,
+    search_knowledge_base,
 ]

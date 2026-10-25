@@ -135,7 +135,7 @@ def _is_document_overview_query(query: str) -> bool:
     )
 
 
-def _overview_chunks_from_source(source: str, k: int) -> list[Document]:
+def _overview_chunks_from_source(source: str,k: int,user_id: str,) ->list[Document]:
     """Select representative program/objective chunks across the selected PDF.
 
     Unlike similarity-only retrieval, this scans the selected source's already
@@ -144,7 +144,12 @@ def _overview_chunks_from_source(source: str, k: int) -> list[Document]:
     are relevant before they are returned to the answer model.
     """
     stored = vector_store.get(
-        where={"source": source},
+        where={
+            "$and": [
+                {"user_id": user_id},
+                {"source": source},
+            ]
+        },
         include=["documents", "metadatas"],
     )
     contents = stored.get("documents") or []
@@ -198,14 +203,23 @@ def _overview_chunks_from_source(source: str, k: int) -> list[Document]:
 
 def _search_documents(
     query: str,
+    user_id: str,
     k: int = 4,
     source: str | None = None,
 ) -> list[Document]:
-    """Retrieve chunks, using source-wide section coverage for overview queries."""
+    """Retrieve chunks restricted to the current user and optional source."""
+
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise ValueError("A valid user_id is required.")
 
     if source and _is_document_overview_query(query):
         try:
-            overview_documents = _overview_chunks_from_source(source, k)
+            overview_documents = _overview_chunks_from_source(
+                source,
+                k,
+                user_id=user_id,
+            )
+
             if overview_documents:
                 logger.info(
                     "Document-overview retrieval selected %d section chunks from %s.",
@@ -213,24 +227,39 @@ def _search_documents(
                     source,
                 )
                 return overview_documents
-            logger.info(
-                "No section headings found for document overview; using similarity search."
-            )
-        except Exception:
 
+            logger.info(
+                "No section headings found for document overview; "
+                "using similarity search."
+            )
+
+        except Exception:
             logger.exception(
-                "Document-overview scan failed for %s; falling back to similarity search.",
+                "Document-overview scan failed for %s; "
+                "falling back to similarity search.",
                 source,
             )
 
-    search_kwargs = {"k": k}
+    search_filter = {"user_id": user_id}
+
     if source:
-        search_kwargs["filter"] = {"source": source}
+        search_filter = {
+            "$and": [
+                {"user_id": user_id},
+                {"source": source},
+            ]
+        }
+
+    search_kwargs = {
+        "k": k,
+        "filter": search_filter,
+    }
 
     retriever = vector_store.as_retriever(
         search_type="similarity",
         search_kwargs=search_kwargs,
     )
+
     return retriever.invoke(query)
 
 
@@ -309,19 +338,31 @@ def _rewrite_query(query: str, source: str | None = None) -> str:
 
 def retrieve_documents(
     query: str,
+    user_id: str,
     k: int = 4,
     source: str | None = None,
 ) -> list[Document]:
     """Run document-only CRAG with one corrective retrieval attempt."""
 
+    if not isinstance(user_id, str) or not user_id.strip():
+        raise ValueError("A valid user_id is required.")
+
     print(f"\n[CRAG] Original query: {query}")
     print(f"[CRAG] Selected source: {source}")
 
-    documents = _search_documents(query=query, k=k, source=source)
+    documents = _search_documents(
+        query=query,
+        user_id=user_id,
+        k=k,
+        source=source,
+    )
     print(f"[CRAG] Initial chunks retrieved: {len(documents)}")
 
-    verdict, relevant_documents, evaluations = _grade_documents(query, documents)
+    verdict, relevant_documents, evaluations = _grade_documents(
+        query, documents
+    )
     print(f"[CRAG] Initial verdict: {verdict}")
+
     for evaluation in evaluations:
         print(
             f"[CRAG] Chunk {evaluation.index}: score={evaluation.score:.2f}; "
@@ -354,23 +395,27 @@ def retrieve_documents(
 
     retry_documents = _search_documents(
         query=rewritten_query,
+        user_id=user_id,
         k=k,
         source=source,
     )
     print(f"[CRAG] Retry chunks retrieved: {len(retry_documents)}")
 
-    retry_verdict, retry_relevant_documents, retry_evaluations = _grade_documents(
-        query, retry_documents
+    retry_verdict, retry_relevant_documents, retry_evaluations = (
+        _grade_documents(query, retry_documents)
     )
     print(f"[CRAG] Retry verdict: {retry_verdict}")
+
     for evaluation in retry_evaluations:
         print(
-            f"[CRAG] Retry chunk {evaluation.index}: score={evaluation.score:.2f}; "
-            f"reason={evaluation.reason}"
+            f"[CRAG] Retry chunk {evaluation.index}: "
+            f"score={evaluation.score:.2f}; reason={evaluation.reason}"
         )
 
     if retry_verdict == "CORRECT":
-        print(f"[CRAG] Returning {len(retry_relevant_documents)} corrected chunks.")
+        print(
+            f"[CRAG] Returning {len(retry_relevant_documents)} corrected chunks."
+        )
         return retry_relevant_documents
 
     if source and _is_document_overview_query(query):
@@ -386,5 +431,8 @@ def retrieve_documents(
             )
             return overview_relevant
 
-    print("[CRAG] No confident document evidence after correction; returning no chunks.")
+    print(
+        "[CRAG] No confident document evidence after correction; "
+        "returning no chunks."
+    )
     return []
